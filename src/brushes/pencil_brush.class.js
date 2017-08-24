@@ -14,7 +14,7 @@
      */
     initialize: function(canvas) {
       this.canvas = canvas;
-      this._points = [ ];
+      this._points = [];
     },
 
     /**
@@ -95,7 +95,7 @@
      * @private
      */
     _render: function() {
-      var ctx  = this.canvas.contextTop,
+      var ctx  = this.canvas.contextTop, i, len,
           v = this.canvas.viewportTransform,
           p1 = this._points[0],
           p2 = this._points[1];
@@ -114,7 +114,7 @@
       }
       ctx.moveTo(p1.x, p1.y);
 
-      for (var i = 1, len = this._points.length; i < len; i++) {
+      for (i = 1, len = this._points.length; i < len; i++) {
         // we pick the point between pi + 1 & pi + 2 as the
         // end point and p1 as our control point.
         var midPoint = p1.midPointFrom(p2);
@@ -134,17 +134,15 @@
     /**
      * Converts points to SVG path
      * @param {Array} points Array of points
-     * @param {Number} minX
-     * @param {Number} minY
      * @return {String} SVG path
      */
     convertPointsToSVGPath: function(points) {
-      var path = [],
+      var path = [], i, len,
           p1 = new fabric.Point(points[0].x, points[0].y),
           p2 = new fabric.Point(points[1].x, points[1].y);
 
       path.push('M ', points[0].x, ' ', points[0].y, ' ');
-      for (var i = 1, len = points.length; i < len; i++) {
+      for (i = 1, len = points.length; i < len; i++) {
         var midPoint = p1.midPointFrom(p2);
         // p1 is our bezier control point
         // midpoint is our endpoint
@@ -166,16 +164,17 @@
      */
     createPath: function(pathData) {
       var path = new fabric.Path(pathData, {
-                   fill: null,
-                   stroke: this.color,
-                   strokeWidth: this.width,
-                   strokeLineCap: this.strokeLineCap,
-                   strokeLineJoin: this.strokeLineJoin,
-                   strokeDashArray: this.strokeDashArray,
-                   originX: 'center',
-                   originY: 'center'
-                 });
-
+        fill: null,
+        stroke: this.color,
+        strokeWidth: this.width,
+        strokeLineCap: this.strokeLineCap,
+        strokeLineJoin: this.strokeLineJoin,
+        strokeDashArray: this.strokeDashArray,
+      });
+      if (path.originX !== 'left' || path.originY !== 'top') {
+        var position = new fabric.Point({ x: path.left, y: path.top });
+        position = path.translateToGivenOrigin(position, 'left', 'top', path.originX, path.originY);
+      }
       if (this.shadow) {
         this.shadow.affectStroke = true;
         path.setShadow(this.shadow);
@@ -199,7 +198,7 @@
         // rendered inconsistently across browsers
         // Firefox 4, for example, renders a dot,
         // whereas Chrome 10 renders nothing
-        this.canvas.renderAll();
+        this.canvas.requestRenderAll();
         return;
       }
 
@@ -210,7 +209,7 @@
 
       this.canvas.clearContext(this.canvas.contextTop);
       this._resetShadow();
-      this.canvas.renderAll();
+      this.canvas.requestRenderAll();
 
       // fire event 'path' created
       this.canvas.fire('path:created', { path: path });

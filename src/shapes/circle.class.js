@@ -11,6 +11,11 @@
     return;
   }
 
+  var cacheProperties = fabric.Object.prototype.cacheProperties.concat();
+  cacheProperties.push(
+    'radius'
+  );
+
   /**
    * Circle class
    * @class fabric.Circle
@@ -47,24 +52,22 @@
      */
     endAngle: pi * 2,
 
+    cacheProperties: cacheProperties,
+
     /**
      * Constructor
      * @param {Object} [options] Options object
      * @return {fabric.Circle} thisArg
      */
     initialize: function(options) {
-      options = options || { };
-
       this.callSuper('initialize', options);
-      this.set('radius', options.radius || 0);
-      this.startAngle = options.startAngle || this.startAngle;
-      this.endAngle = options.endAngle || this.endAngle;
+      this.set('radius', options && options.radius || 0);
     },
 
     /**
      * @private
      * @param {String} key
-     * @param {Any} value
+     * @param {*} value
      * @return {fabric.Circle} thisArg
      */
     _set: function(key, value) {
@@ -83,11 +86,7 @@
      * @return {Object} object representation of an instance
      */
     toObject: function(propertiesToInclude) {
-      return extend(this.callSuper('toObject', propertiesToInclude), {
-        radius: this.get('radius'),
-        startAngle: this.startAngle,
-        endAngle: this.endAngle
-      });
+      return this.callSuper('toObject', ['radius', 'startAngle', 'endAngle'].concat(propertiesToInclude));
     },
 
     /* _TO_SVG_START_ */
@@ -98,15 +97,11 @@
      */
     toSVG: function(reviver) {
       var markup = this._createBaseSVGMarkup(), x = 0, y = 0,
-      angle = (this.endAngle - this.startAngle) % ( 2 * pi);
+          angle = (this.endAngle - this.startAngle) % ( 2 * pi);
 
       if (angle === 0) {
-        if (this.group && this.group.type === 'path-group') {
-          x = this.left + this.radius;
-          y = this.top + this.radius;
-        }
         markup.push(
-          '<circle ',
+          '<circle ', this.getSvgId(),
             'cx="' + x + '" cy="' + y + '" ',
             'r="', this.radius,
             '" style="', this.getSvgStyles(),
@@ -125,7 +120,7 @@
         markup.push(
           '<path d="M ' + startX + ' ' + startY,
           ' A ' + this.radius + ' ' + this.radius,
-          ' 0 ', + largeFlag + ' 1', ' ' + endX + ' ' + endY,
+          ' 0 ', +largeFlag + ' 1', ' ' + endX + ' ' + endY,
           '" style="', this.getSvgStyles(),
           '" transform="', this.getSvgTransform(),
           ' ', this.getSvgTransformMatrix(),
@@ -140,12 +135,11 @@
     /**
      * @private
      * @param {CanvasRenderingContext2D} ctx context to render on
-     * @param {Boolean} [noTransform] When true, context is not transformed
      */
-    _render: function(ctx, noTransform) {
+    _render: function(ctx) {
       ctx.beginPath();
-      ctx.arc(noTransform ? this.left + this.radius : 0,
-              noTransform ? this.top + this.radius : 0,
+      ctx.arc(0,
+              0,
               this.radius,
               this.startAngle,
               this.endAngle, false);
@@ -171,20 +165,12 @@
 
     /**
      * Sets radius of an object (and updates width accordingly)
-     * @return {Number}
+     * @return {fabric.Circle} thisArg
      */
     setRadius: function(value) {
       this.radius = value;
-      this.set('width', value * 2).set('height', value * 2);
+      return this.set('width', value * 2).set('height', value * 2);
     },
-
-    /**
-     * Returns complexity of an instance
-     * @return {Number} complexity of this instance
-     */
-    complexity: function() {
-      return 1;
-    }
   });
 
   /* _FROM_SVG_START_ */
@@ -202,10 +188,10 @@
    * @memberOf fabric.Circle
    * @param {SVGElement} element Element to parse
    * @param {Object} [options] Options object
+   * @param {Function} [callback] Options callback invoked after parsing is finished
    * @throws {Error} If value of `r` attribute is missing or invalid
-   * @return {fabric.Circle} Instance of fabric.Circle
    */
-  fabric.Circle.fromElement = function(element, options) {
+  fabric.Circle.fromElement = function(element, callback, options) {
     options || (options = { });
 
     var parsedAttributes = fabric.parseAttributes(element, fabric.Circle.ATTRIBUTE_NAMES);
@@ -214,14 +200,9 @@
       throw new Error('value of `r` attribute is required and can not be negative');
     }
 
-    parsedAttributes.left = parsedAttributes.left || 0;
-    parsedAttributes.top = parsedAttributes.top || 0;
-
-    var obj = new fabric.Circle(extend(parsedAttributes, options));
-
-    obj.left -= obj.radius;
-    obj.top -= obj.radius;
-    return obj;
+    parsedAttributes.left = (parsedAttributes.left || 0) - parsedAttributes.radius;
+    parsedAttributes.top = (parsedAttributes.top || 0) - parsedAttributes.radius;
+    callback(new fabric.Circle(extend(parsedAttributes, options)));
   };
 
   /**
@@ -237,10 +218,11 @@
    * @static
    * @memberOf fabric.Circle
    * @param {Object} object Object to create an instance from
+   * @param {function} [callback] invoked with new instance as first argument
    * @return {Object} Instance of fabric.Circle
    */
-  fabric.Circle.fromObject = function(object) {
-    return new fabric.Circle(object);
+  fabric.Circle.fromObject = function(object, callback) {
+    return fabric.Object._fromObject('Circle', object, callback);
   };
 
 })(typeof exports !== 'undefined' ? exports : this);

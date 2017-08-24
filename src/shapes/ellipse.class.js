@@ -11,6 +11,12 @@
     return;
   }
 
+  var cacheProperties = fabric.Object.prototype.cacheProperties.concat();
+  cacheProperties.push(
+    'rx',
+    'ry'
+  );
+
   /**
    * Ellipse class
    * @class fabric.Ellipse
@@ -41,24 +47,23 @@
      */
     ry:   0,
 
+    cacheProperties: cacheProperties,
+
     /**
      * Constructor
      * @param {Object} [options] Options object
      * @return {fabric.Ellipse} thisArg
      */
     initialize: function(options) {
-      options = options || { };
-
       this.callSuper('initialize', options);
-
-      this.set('rx', options.rx || 0);
-      this.set('ry', options.ry || 0);
+      this.set('rx', options && options.rx || 0);
+      this.set('ry', options && options.ry || 0);
     },
 
     /**
      * @private
      * @param {String} key
-     * @param {Any} value
+     * @param {*} value
      * @return {fabric.Ellipse} thisArg
      */
     _set: function(key, value) {
@@ -101,10 +106,7 @@
      * @return {Object} object representation of an instance
      */
     toObject: function(propertiesToInclude) {
-      return extend(this.callSuper('toObject', propertiesToInclude), {
-        rx: this.get('rx'),
-        ry: this.get('ry')
-      });
+      return this.callSuper('toObject', ['rx', 'ry'].concat(propertiesToInclude));
     },
 
     /* _TO_SVG_START_ */
@@ -115,12 +117,8 @@
      */
     toSVG: function(reviver) {
       var markup = this._createBaseSVGMarkup(), x = 0, y = 0;
-      if (this.group && this.group.type === 'path-group') {
-        x = this.left + this.rx;
-        y = this.top + this.ry;
-      }
       markup.push(
-        '<ellipse ',
+        '<ellipse ', this.getSvgId(),
           'cx="', x, '" cy="', y, '" ',
           'rx="', this.rx,
           '" ry="', this.ry,
@@ -137,15 +135,14 @@
     /**
      * @private
      * @param {CanvasRenderingContext2D} ctx context to render on
-     * @param {Boolean} [noTransform] When true, context is not transformed
      */
-    _render: function(ctx, noTransform) {
+    _render: function(ctx) {
       ctx.beginPath();
       ctx.save();
-      ctx.transform(1, 0, 0, this.ry/this.rx, 0, 0);
+      ctx.transform(1, 0, 0, this.ry / this.rx, 0, 0);
       ctx.arc(
-        noTransform ? this.left + this.rx : 0,
-        noTransform ? (this.top + this.ry) * this.rx/this.ry : 0,
+        0,
+        0,
         this.rx,
         0,
         piBy2,
@@ -154,14 +151,6 @@
       this._renderFill(ctx);
       this._renderStroke(ctx);
     },
-
-    /**
-     * Returns complexity of an instance
-     * @return {Number} complexity
-     */
-    complexity: function() {
-      return 1;
-    }
   });
 
   /* _FROM_SVG_START_ */
@@ -179,21 +168,17 @@
    * @memberOf fabric.Ellipse
    * @param {SVGElement} element Element to parse
    * @param {Object} [options] Options object
+   * @param {Function} [callback] Options callback invoked after parsing is finished
    * @return {fabric.Ellipse}
    */
-  fabric.Ellipse.fromElement = function(element, options) {
+  fabric.Ellipse.fromElement = function(element, callback, options) {
     options || (options = { });
 
     var parsedAttributes = fabric.parseAttributes(element, fabric.Ellipse.ATTRIBUTE_NAMES);
 
-    parsedAttributes.left = parsedAttributes.left || 0;
-    parsedAttributes.top = parsedAttributes.top || 0;
-
-    var ellipse = new fabric.Ellipse(extend(parsedAttributes, options));
-
-    ellipse.top -= ellipse.ry;
-    ellipse.left -= ellipse.rx;
-    return ellipse;
+    parsedAttributes.left = (parsedAttributes.left || 0) - parsedAttributes.rx;
+    parsedAttributes.top = (parsedAttributes.top || 0) - parsedAttributes.ry;
+    callback(new fabric.Ellipse(extend(parsedAttributes, options)));
   };
   /* _FROM_SVG_END_ */
 
@@ -202,10 +187,11 @@
    * @static
    * @memberOf fabric.Ellipse
    * @param {Object} object Object to create an instance from
+   * @param {function} [callback] invoked with new instance as first argument
    * @return {fabric.Ellipse}
    */
-  fabric.Ellipse.fromObject = function(object) {
-    return new fabric.Ellipse(object);
+  fabric.Ellipse.fromObject = function(object, callback) {
+    return fabric.Object._fromObject('Ellipse', object, callback);
   };
 
 })(typeof exports !== 'undefined' ? exports : this);

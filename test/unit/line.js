@@ -30,7 +30,10 @@
     'clipTo':                   null,
     'backgroundColor':          '',
     'fillRule':                 'nonzero',
-    'globalCompositeOperation': 'source-over'
+    'globalCompositeOperation': 'source-over',
+    'skewX':                    0,
+    'skewY':                    0,
+    'transformMatrix':          null
   };
 
   QUnit.module('fabric.Line');
@@ -68,11 +71,13 @@
     deepEqual(LINE_OBJECT, line.toObject());
   });
 
-  test('fromObject', function() {
+  asyncTest('fromObject', function() {
     ok(typeof fabric.Line.fromObject == 'function');
-    var line = fabric.Line.fromObject(LINE_OBJECT);
-    ok(line instanceof fabric.Line);
-    deepEqual(LINE_OBJECT, line.toObject());
+    fabric.Line.fromObject(LINE_OBJECT, function(line) {
+      ok(line instanceof fabric.Line);
+      deepEqual(LINE_OBJECT, line.toObject());
+      start();
+    });
   });
 
   test('fromElement', function() {
@@ -101,28 +106,29 @@
     lineEl.setAttribute('stroke-linejoin', strokeLineJoin);
     lineEl.setAttribute('stroke-miterlimit', strokeMiterLimit);
 
-    var oLine = fabric.Line.fromElement(lineEl);
-    ok(oLine instanceof fabric.Line);
+    fabric.Line.fromElement(lineEl, function(oLine) {
+      ok(oLine instanceof fabric.Line);
 
-    equal(oLine.get('x1'), x1);
-    equal(oLine.get('y1'), y1);
-    equal(oLine.get('x2'), x2);
-    equal(oLine.get('y2'), y2);
-    equal(oLine.get('stroke'), stroke);
-    equal(oLine.get('strokeWidth'), strokeWidth);
-    deepEqual(oLine.get('strokeDashArray'), strokeDashArray);
-    equal(oLine.get('strokeLineCap'), strokeLineCap);
-    equal(oLine.get('strokeLineJoin'), strokeLineJoin);
-    equal(oLine.get('strokeMiterLimit'), strokeMiterLimit);
+      equal(oLine.get('x1'), x1);
+      equal(oLine.get('y1'), y1);
+      equal(oLine.get('x2'), x2);
+      equal(oLine.get('y2'), y2);
+      equal(oLine.get('stroke'), stroke);
+      equal(oLine.get('strokeWidth'), strokeWidth);
+      deepEqual(oLine.get('strokeDashArray'), strokeDashArray);
+      equal(oLine.get('strokeLineCap'), strokeLineCap);
+      equal(oLine.get('strokeLineJoin'), strokeLineJoin);
+      equal(oLine.get('strokeMiterLimit'), strokeMiterLimit);
 
-    var lineElWithMissingAttributes = fabric.document.createElement('line');
-    lineElWithMissingAttributes.setAttribute('x1', 10);
-    lineElWithMissingAttributes.setAttribute('y1', 20);
+      var lineElWithMissingAttributes = fabric.document.createElement('line');
+      lineElWithMissingAttributes.setAttribute('x1', 10);
+      lineElWithMissingAttributes.setAttribute('y1', 20);
 
-    oLine = fabric.Line.fromElement(lineElWithMissingAttributes);
-
-    equal(oLine.get('x2'), 0, 'missing attributes count as 0 values');
-    equal(oLine.get('y2'), 0, 'missing attributes count as 0 values');
+      fabric.Line.fromElement(lineElWithMissingAttributes, function(oLine2) {
+        equal(oLine2.get('x2'), 0, 'missing attributes count as 0 values');
+        equal(oLine2.get('y2'), 0, 'missing attributes count as 0 values');
+      });
+    });
   });
 
   test('straight lines may have 0 width or heigth', function() {
@@ -134,7 +140,7 @@
   });
 
   test('changing x/y coords should update width/height', function() {
-    var line = new fabric.Line([ 50, 50, 100, 100]);
+    var line = new fabric.Line([50, 50, 100, 100]);
 
     equal(50, line.width);
 
@@ -145,16 +151,11 @@
   });
 
   test('stroke-width in a style', function() {
-    var lineEl = fabric.document.createElement('line'),
-        x1 = 0,
-        y1 = 0,
-        x2 = 10,
-        y2 = 10;
-
+    var lineEl = fabric.document.createElement('line');
     lineEl.setAttribute('style', 'stroke-width:4');
-
-    var oLine = fabric.Line.fromElement(lineEl);
-    ok(4, oLine.strokeWidth);
+    fabric.Line.fromElement(lineEl, function(oLine) {
+      ok(4, oLine.strokeWidth);
+    });
   });
 
   // this isn't implemented yet, so disabling for now
@@ -198,7 +199,7 @@
     },
     { description: 'include offsets for left-top origin',
       givenLineArgs: {
-        points: [0+33, 0+44, 11+33, 22+44],
+        points: [0 + 33, 0 + 44, 11 + 33, 22 + 44],
         options: {
           originX: 'left',
           originY: 'top',
@@ -224,7 +225,7 @@
     },
     { description: 'include offsets for center-center origin',
       givenLineArgs: {
-        points: [0+9.87, 0-4.32, 12.3+9.87, 34.5-4.32],
+        points: [0 + 9.87, 0 - 4.32, 12.3 + 9.87, 34.5 - 4.32],
         options: {
           originX: 'center',
           originY: 'center',
@@ -250,7 +251,7 @@
     },
     { description: 'include offsets for right-bottom origin',
       givenLineArgs: {
-        points: [0-3.14, 0-1.41, 55-3.14, 18-1.41],
+        points: [0 - 3.14, 0 - 1.41, 55 - 3.14, 18 - 1.41],
         options: {
           originX: 'right',
           originY: 'bottom',
@@ -334,7 +335,7 @@
     },
     { description: 'arent changed by strokeWidth for center-center origin',
       givenLineArgs: {
-        points: [0+31, 15+26, 28+31, 0+26],
+        points: [0 + 31, 15 + 26, 28 + 31, 0 + 26],
         options: {
           originX: 'center',
           originY: 'center',
@@ -457,13 +458,13 @@
     },
     { description: 'includes positive offset for left origin',
       givenOrigin: 'left',
-      givenPoints: [0+20, 0, 1+20, 0],
-      expectedLeft: 0+20,
+      givenPoints: [0 + 20, 0, 1 + 20, 0],
+      expectedLeft: 0 + 20,
     },
     { description: 'includes negative offset for left origin',
       givenOrigin: 'left',
-      givenPoints: [0-11, 0, 1-11, 0],
-      expectedLeft: 0-11,
+      givenPoints: [0 - 11, 0, 1 - 11, 0],
+      expectedLeft: 0 - 11,
     },
     { description: 'is half of x1 for center origin and x1 > x2',
       givenOrigin: 'center',
@@ -477,12 +478,12 @@
     },
     { description: 'includes positive offset for center origin',
       givenOrigin: 'center',
-      givenPoints: [0+39, 0, 7+39, 0],
+      givenPoints: [0 + 39, 0, 7 + 39, 0],
       expectedLeft: (0.5 * 7) + 39,
     },
     { description: 'includes negative offset for center origin',
       givenOrigin: 'center',
-      givenPoints: [4-13, 0, 0-13, 0],
+      givenPoints: [4 - 13, 0, 0 - 13, 0],
       expectedLeft: (0.5 * 4) - 13,
     },
     { description: 'is x1 for right origin and x1 > x2',
@@ -497,12 +498,12 @@
     },
     { description: 'includes positive offset for right origin',
       givenOrigin: 'right',
-      givenPoints: [0+47, 0, 6+47, 0],
+      givenPoints: [0 + 47, 0, 6 + 47, 0],
       expectedLeft: 6 + 47,
     },
     { description: 'includes negative offset for right origin',
       givenOrigin: 'right',
-      givenPoints: [9-17, 0, 0-17, 0],
+      givenPoints: [9 - 17, 0, 0 - 17, 0],
       expectedLeft: 9 - 17,
     },
   ];
@@ -531,13 +532,13 @@
     },
     { description: 'includes positive offset for top origin',
       givenOrigin: 'top',
-      givenPoints: [0, 0+20, 0, 1+20],
-      expectedTop: 0+20,
+      givenPoints: [0, 0 + 20, 0, 1 + 20],
+      expectedTop: 0 + 20,
     },
     { description: 'includes negative offset for top origin',
       givenOrigin: 'top',
-      givenPoints: [0, 0-11, 0, 1-11],
-      expectedTop: 0-11,
+      givenPoints: [0, 0 - 11, 0, 1 - 11],
+      expectedTop: 0 - 11,
     },
     { description: 'is half of y1 for center origin and y1 > y2',
       givenOrigin: 'center',
@@ -551,12 +552,12 @@
     },
     { description: 'includes positive offset for center origin',
       givenOrigin: 'center',
-      givenPoints: [0, 0+39, 0, 7+39],
+      givenPoints: [0, 0 + 39, 0, 7 + 39],
       expectedTop: (0.5 * 7) + 39,
     },
     { description: 'includes negative offset for center origin',
       givenOrigin: 'center',
-      givenPoints: [0, 4-13, 0, 0-13],
+      givenPoints: [0, 4 - 13, 0, 0 - 13],
       expectedTop: (0.5 * 4) - 13,
     },
     { description: 'is y1 for bottom origin and y1 > y2',
@@ -571,12 +572,12 @@
     },
     { description: 'includes positive offset for bottom origin',
       givenOrigin: 'bottom',
-      givenPoints: [0, 0+47, 0, 6+47],
+      givenPoints: [0, 0 + 47, 0, 6 + 47],
       expectedTop: 6 + 47,
     },
     { description: 'includes negative offset for bottom origin',
       givenOrigin: 'bottom',
-      givenPoints: [0, 9-17, 0, 0-17],
+      givenPoints: [0, 9 - 17, 0, 0 - 17],
       expectedTop: 9 - 17,
     },
   ];

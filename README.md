@@ -2,7 +2,7 @@
 
 <!-- chat, support -->
 
-[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/kangax/fabric.js?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/JoinChat.svg)](https://gitter.im/kangax/fabric.js?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 <!-- build/coverage status, climate -->
 
@@ -10,11 +10,12 @@
 [![Code Climate](https://d3s6mut3hikguw.cloudfront.net/github/kangax/fabric.js/badges/gpa.svg)](https://codeclimate.com/github/kangax/fabric.js)
 [![Coverage Status](https://coveralls.io/repos/kangax/fabric.js/badge.png?branch=master)](https://coveralls.io/r/kangax/fabric.js?branch=master)
 
-<!-- npm, bower versions, downloads -->
+<!-- npm, bower, CDNJS versions, downloads -->
 
 [![Bower version](https://badge.fury.io/bo/fabric.svg)](http://badge.fury.io/bo/fabric)
 [![NPM version](https://badge.fury.io/js/fabric.svg)](http://badge.fury.io/js/fabric)
-[![Downloads per month](https://img.shields.io/npm/dm/localeval.svg)](https://www.npmjs.org/package/fabric)
+[![Downloads per month](https://img.shields.io/npm/dm/fabric.svg)](https://www.npmjs.org/package/fabric)
+[![CDNJS version](https://img.shields.io/cdnjs/v/fabric.js.svg)](https://cdnjs.com/libraries/fabric.js)
 
 <!-- deps status -->
 
@@ -29,46 +30,36 @@
 
 **Fabric.js** is a framework that makes it easy to work with HTML5 canvas element. It is an **interactive object model** on top of canvas element. It is also an **SVG-to-canvas parser**.
 
-<a href="http://fabricjs.com/kitchensink/" target="_blank"><img src="https://github.com/kangax/fabric.js/raw/master/lib/screenshot.png" style="width:300px;box-shadow:rgba(0,0,0,0.3) 0 0 5px"></a>
+<a href="http://fabricjs.com/kitchensink" target="_blank"><img src="https://github.com/kangax/fabric.js/raw/master/lib/screenshot.png" style="width:300px;box-shadow:rgba(0,0,0,0.3) 0 0 5px"></a>
 
 Using Fabric.js, you can create and populate objects on canvas; objects like simple geometrical shapes — rectangles, circles, ellipses, polygons, or more complex shapes consisting of hundreds or thousands of simple paths. You can then scale, move, and rotate these objects with the mouse; modify their properties — color, transparency, z-index, etc. You can also manipulate these objects altogether — grouping them with a simple mouse selection.
+
+### Non-Technical Introduction to Fabric
+
+Fabric.js allows you to easily create simple shapes like rectangles, circles, triangles and other polygons or more complex shapes made up of many paths, onto the HTML `<canvas>` element on a webpage using JavaScript.  Fabric.js will then allow you to manipulate the size, position and rotation of these objects with a mouse.  It’s also possible to change some of the attributes of these objects such as their color, transparency, depth position on the webpage or selecting groups of these objects using the Fabric.js library. Fabric.js will also allow you to convert an SVG image into JavaScript data that can be used for putting it onto the `<canvas>` element.
+
 
 [Contributions](https://github.com/kangax/fabric.js/wiki/Love-Fabric%3F-Help-us-by...) are very much welcome!
 
 ### Goals
 
-- Unit tested (2400+ tests at the moment)
+- Unit tested (4400+ assertion, 940+ tests at the moment, 75%+ coverage)
 - Modular (~60 small ["classes", modules, mixins](http://fabricjs.com/docs/))
 - Cross-browser
 - [Fast](https://github.com/kangax/fabric.js/wiki/Focus-on-speed)
 - Encapsulated in one object
 - No browser sniffing for critical functionality
 - Runs under ES5 strict mode
-- Runs on a server under [Node.js](http://nodejs.org/) (0.6, 0.8, 0.10) (see [Node.js limitations](https://github.com/kangax/fabric.js/wiki/Fabric-limitations-in-node.js))
+- Runs on a server under [Node.js](http://nodejs.org/) (stable releases and latest of current) (see [Node.js limitations](https://github.com/kangax/fabric.js/wiki/Fabric-limitations-in-node.js))
+- Follows [Semantic Versioning](http://semver.org/)
 
 ### Supported browsers
 
 - Firefox 2+
 - Safari 3+
 - Opera 9.64+
-- Chrome (all versions should work)
-- IE9, IE10, IE11
-
-#### With help of [Explorer Canvas](http://code.google.com/p/explorercanvas/)
-
-- IE8 (incomplete — about 17 failing tests at the moment)
-- IE7,6 (incomplete - about 27 failing tests at the moment)
-
-See [Fabric limitations in Old IE](https://github.com/kangax/fabric.js/wiki/Fabric-limitations-in-oldIE).
-
-Note: to properly make old IE work, you will need to add [html5shiv](https://github.com/aFarkas/html5shiv) as a conditional comment in your HEAD, particularly `html5shiv-printshiv.js` to allow for children elements:
-
-```
-<!--[if lt IE 9]>
-    <script src="path/to/your/html5shiv-printshiv.js"></script>
-<![endif]-->
-```
-Remember to add [Explorer Canvas](http://code.google.com/p/explorercanvas/) as well.
+- Chrome (all versions)
+- IE10, IE11, Edge
 
 You can [run automated unit tests](http://fabricjs.com/test/unit/) right in the browser.
 
@@ -80,6 +71,11 @@ Fabric.js started as a foundation for design editor on [printio.ru](http://print
 
     $ bower install fabric
 
+<h3 id="npm-install">Install with npm</h3>
+
+To install Fabric.js using npm, you must first manually [install Cairo](http://cairographics.org/download/) on your system. Cairo is a system library which powers node-canvas, which Fabric.js relies on. When the installation is complete, you may need to restart your terminal or command prompt before installing fabric.
+
+    $ npm install fabric --save
 
 <h3 id="fabric-building">Building</h3>
 
@@ -154,13 +150,20 @@ Fabric.js started as a foundation for design editor on [printio.ru](http://print
 
 4. Run test suite
 
-        $ npm test
+Make sure testem is installed
 
+        $ npm install -g testem
+
+Run tests Chrome and Node (by default):
+
+        $ testem
+
+See testem docs for more info: https://github.com/testem/testem
 
 ### Demos
 
 - [Demos](http://fabricjs.com/demos/)
-- [Kitchensink demo](http://fabricjs.com/kitchensink/)
+- [Kitchensink demo](http://fabricjs.com/kitchensink)
 - [Benchmarks](http://fabricjs.com/benchmarks/)
 
 [Who's using Fabric?](http://trends.builtwith.com/javascript/FabricJS)
@@ -176,7 +179,7 @@ Also see [official 4-part intro series](http://fabricjs.com/articles), [presenta
 These are the optional modules that could be specified for inclusion, when building custom version of fabric:
 
 - **text** — Adds support for static text (`fabric.Text`)
-- **itext** — Adds support for interactive text (`fabric.IText`)
+- **itext** — Adds support for interactive text (`fabric.IText`, `fabric.Textbox`)
 - **serialization** — Adds support for `loadFromJSON`, `loadFromDatalessJSON`, and `clone` methods on `fabric.Canvas`
 - **interaction** — Adds support for interactive features of fabric — selecting/transforming objects/groups via mouse/touch devices.
 - **parser** — Adds support for `fabric.parseSVGDocument`, `fabric.loadSVGFromURL`, and `fabric.loadSVGFromString`
@@ -193,7 +196,6 @@ Additional flags for build script are:
 - **requirejs** — Makes fabric requirejs AMD-compatible in `dist/fabric.js`. *Note:* an unminified, requirejs-compatible version is always created in `dist/fabric.require.js`
 - **no-strict** — Strips "use strict" directives from source
 - **no-svg-export** — Removes svg exporting functionality
-- **no-es5-compat** - Removes ES5 compat methods (Array.prototype.*, String.prototype.*, Function.prototype.*)
 - **sourcemap** - Generates a sourceMap file and adds the `sourceMappingURL` (only if uglifyjs is used) to `dist/fabric.min.js`
 
 For example:
@@ -237,11 +239,11 @@ For example:
 
 ### Staying in touch
 
-Follow [@fabric.js](http://twitter.com/fabricjs) or [@kangax](http://twitter.com/kangax) on twitter.
+Follow [@fabric.js](http://twitter.com/fabricjs), [@kangax](http://twitter.com/kangax) or or [@AndreaBogazzi](http://twitter.com/AndreaBogazzi) on twitter.
 
 Questions, suggestions — [fabric.js on Google Groups](http://groups.google.com/group/fabricjs).
 
-See [Fabric questions on Stackoverflow](stackoverflow.com/questions/tagged/fabricjs),
+See [Fabric questions on Stackoverflow](http://stackoverflow.com/questions/tagged/fabricjs),
 Fabric snippets on [jsfiddle](http://jsfiddle.net/user/fabricjs/fiddles/)
 or [codepen.io](http://codepen.io/tag/fabricjs).
 
@@ -251,11 +253,12 @@ Get help in Fabric's IRC channel — irc://irc.freenode.net/#fabric.js
 
 ### Credits
 
-- Ernest Delgado for the original idea of [manipulating images on canvas](http://www.ernestdelgado.com/archive/canvas/).
-- [Maxim "hakunin" Chernyak](http://twitter.com/hakunin) for ideas, and help with various parts of the library throughout its life.
-- [Sergey Nisnevich](http://nisnya.com) for help with geometry logic.
+- Ernest Delgado for the original idea of [manipulating images on canvas](http://www.ernestdelgado.com/archive/canvas/)
+- [Maxim "hakunin" Chernyak](http://twitter.com/hakunin) for ideas, and help with various parts of the library throughout its life
+- [Sergey Nisnevich](http://nisnya.com) for help with geometry logic
 - [Stefan Kienzle](https://twitter.com/kienzle_s) for help with bugs, features, documentation, github issues
-- Github contributors: @Kingsquare, @cleercode, @jarek-itmore, @sunrei, @khronnuz, @ollym, @garg, @sjpemberton09, @willmcneilly, @davidjrice, @coulix, and [more](https://github.com/kangax/fabric.js/graphs/contributors)
+- [Andrea Bogazzi](https://twitter.com/AndreaBogazzi) for help with bugs, new features, documentation, github issues
+- [And all the other GitHub contributors](https://github.com/kangax/fabric.js/graphs/contributors)
 
 ### MIT License
 

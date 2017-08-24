@@ -31,12 +31,9 @@
      * @return {Object} thisArg
      */
     initialize: function(options) {
-      options = options || { };
-
       this.callSuper('initialize', options);
-
-      this.set('width', options.width || 100)
-          .set('height', options.height || 100);
+      this.set('width', options && options.width || 100)
+          .set('height', options && options.height || 100);
     },
 
     /**
@@ -90,7 +87,7 @@
           .join(',');
 
       markup.push(
-        '<polygon ',
+        '<polygon ', this.getSvgId(),
           'points="', points,
           '" style="', this.getSvgStyles(),
           '" transform="', this.getSvgTransform(),
@@ -100,25 +97,17 @@
       return reviver ? reviver(markup.join('')) : markup.join('');
     },
     /* _TO_SVG_END_ */
-
-    /**
-     * Returns complexity of an instance
-     * @return {Number} complexity of this instance
-     */
-    complexity: function() {
-      return 1;
-    }
   });
 
   /**
-   * Returns fabric.Triangle instance from an object representation
+   * Returns {@link fabric.Triangle} instance from an object representation
    * @static
    * @memberOf fabric.Triangle
    * @param {Object} object Object to create an instance from
-   * @return {Object} instance of Canvas.Triangle
+   * @param {function} [callback] invoked with new instance as first argument
    */
-  fabric.Triangle.fromObject = function(object) {
-    return new fabric.Triangle(object);
+  fabric.Triangle.fromObject = function(object, callback) {
+    return fabric.Object._fromObject('Triangle', object, callback);
   };
 
 })(typeof exports !== 'undefined' ? exports : this);

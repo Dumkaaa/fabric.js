@@ -1,9 +1,6 @@
 (function() {
 
-  var degreesToRadians = fabric.util.degreesToRadians,
-      //jscs:disable requireCamelCaseOrUpperCaseIdentifiers
-      isVML = function() { return typeof G_vmlCanvasManager !== 'undefined'; };
-  //jscs:enable requireCamelCaseOrUpperCaseIdentifiers
+  var degreesToRadians = fabric.util.degreesToRadians;
 
   fabric.util.object.extend(fabric.Object.prototype, /** @lends fabric.Object.prototype */ {
 
@@ -20,7 +17,9 @@
      * @return {String|Boolean} corner code (tl, tr, bl, br, etc.), or false if nothing is found
      */
     _findTargetCorner: function(pointer) {
-      if (!this.hasControls || !this.active) {
+      // objects in group, anykind, are not self modificable,
+      // must not return an hovered corner.
+      if (!this.hasControls || this.group || (!this.canvas || this.canvas._activeObject !== this)) {
         return false;
       }
 
@@ -28,7 +27,7 @@
           ey = pointer.y,
           xPoints,
           lines;
-
+      this.__corner = 0;
       for (var i in this.oCoords) {
 
         if (!this.isControlVisible(i)) {
@@ -77,7 +76,9 @@
     _setCornerCoords: function() {
       var coords = this.oCoords,
           newTheta = degreesToRadians(45 - this.angle),
-          cornerHypotenuse = Math.sqrt(2 * Math.pow(this.cornerSize, 2)) / 2,
+          /* Math.sqrt(2 * Math.pow(this.cornerSize, 2)) / 2, */
+          /* 0.707106 stands for sqrt(2)/2 */
+          cornerHypotenuse = this.cornerSize * 0.707106,
           cosHalfOffset = cornerHypotenuse * Math.cos(newTheta),
           sinHalfOffset = cornerHypotenuse * Math.sin(newTheta),
           x, y;
@@ -106,38 +107,32 @@
       }
     },
 
-    _calculateCurrentDimensions: function(shouldTransform)  {
-      var vpt = this.getViewportTransform(),
-          strokeWidth = this.strokeWidth,
-          w = this.width,
-          h = this.height,
-          capped = this.strokeLineCap === 'round' || this.strokeLineCap === 'square',
-          vLine = this.type === 'line' && this.width === 0,
-          hLine = this.type === 'line' && this.height === 0,
-          sLine = vLine || hLine,
-          strokeW = (capped && hLine) || !sLine,
-          strokeH = (capped && vLine) || !sLine;
-
-      if (vLine) {
-        w = strokeWidth;
+    /**
+     * Draws a colored layer behind the object, inside its selection borders.
+     * Requires public options: padding, selectionBackgroundColor
+     * this function is called when the context is transformed
+     * has checks to be skipped when the object is on a staticCanvas
+     * @param {CanvasRenderingContext2D} ctx Context to draw on
+     * @return {fabric.Object} thisArg
+     * @chainable
+     */
+    drawSelectionBackground: function(ctx) {
+      if (!this.selectionBackgroundColor ||
+        (this.canvas && !this.canvas.interactive) ||
+        (this.canvas && this.canvas._activeObject !== this)
+      ) {
+        return this;
       }
-      else if (hLine) {
-        h = strokeWidth;
-      }
-      if (strokeW) {
-        w += (w < 0 ? -strokeWidth : strokeWidth);
-      }
-      if (strokeH) {
-        h += (h < 0 ? -strokeWidth : strokeWidth);
-      }
-
-      w = w * this.scaleX + 2 * this.padding;
-      h = h * this.scaleY + 2 * this.padding;
-
-      if (shouldTransform) {
-        return fabric.util.transformPoint(new fabric.Point(w, h), vpt, true);
-      }
-      return { x: w, y: h };
+      ctx.save();
+      var center = this.getCenterPoint(), wh = this._calculateCurrentDimensions(),
+          vpt = this.canvas.viewportTransform;
+      ctx.translate(center.x, center.y);
+      ctx.scale(1 / vpt[0], 1 / vpt[3]);
+      ctx.rotate(degreesToRadians(this.angle));
+      ctx.fillStyle = this.selectionBackgroundColor;
+      ctx.fillRect(-wh.x / 2, -wh.y / 2, wh.x, wh.y);
+      ctx.restore();
+      return this;
     },
 
     /**
@@ -145,45 +140,78 @@
      * Requires public properties: width, height
      * Requires public options: padding, borderColor
      * @param {CanvasRenderingContext2D} ctx Context to draw on
+     * @param {Object} styleOverride object to override the object style
      * @return {fabric.Object} thisArg
      * @chainable
      */
-    drawBorders: function(ctx) {
-      if (!this.hasBorders) {
-        return this;
-      }
+    drawBorders: function(ctx, styleOverride) {
+      styleOverride = styleOverride || {};
+      var wh = this._calculateCurrentDimensions(),
+          strokeWidth = 1 / this.borderScaleFactor,
+          width = wh.x + strokeWidth,
+          height = wh.y + strokeWidth,
+          drawRotatingPoint = typeof styleOverride.hasRotatingPoint !== 'undefined' ?
+            styleOverride.hasRotatingPoint : this.hasRotatingPoint,
+          hasControls = typeof styleOverride.hasControls !== 'undefined' ?
+              styleOverride.hasControls : this.hasControls,
+          rotatingPointOffset = typeof styleOverride.rotatingPointOffset !== 'undefined' ?
+            styleOverride.rotatingPointOffset : this.rotatingPointOffset;
 
       ctx.save();
-
-      ctx.globalAlpha = this.isMoving ? this.borderOpacityWhenMoving : 1;
-      ctx.strokeStyle = this.borderColor;
-      ctx.lineWidth = 1 / this.borderScaleFactor;
-
-      var wh = this._calculateCurrentDimensions(true),
-          width = wh.x,
-          height = wh.y;
-      if (this.group) {
-        width = width * this.group.scaleX;
-        height = height * this.group.scaleY;
-      }
+      ctx.strokeStyle = styleOverride.borderColor || this.borderColor;
+      this._setLineDash(ctx, styleOverride.borderDashArray || this.borderDashArray, null);
 
       ctx.strokeRect(
-        ~~(-(width / 2)) - 0.5, // offset needed to make lines look sharper
-        ~~(-(height / 2)) - 0.5,
-        ~~(width) + 1, // double offset needed to make lines look sharper
-        ~~(height) + 1
+        -width / 2,
+        -height / 2,
+        width,
+        height
       );
 
-      if (this.hasRotatingPoint && this.isControlVisible('mtr') && !this.get('lockRotation') && this.hasControls) {
+      if (drawRotatingPoint && this.isControlVisible('mtr') && hasControls) {
 
         var rotateHeight = -height / 2;
 
         ctx.beginPath();
         ctx.moveTo(0, rotateHeight);
-        ctx.lineTo(0, rotateHeight - this.rotatingPointOffset);
+        ctx.lineTo(0, rotateHeight - rotatingPointOffset);
         ctx.closePath();
         ctx.stroke();
       }
+
+      ctx.restore();
+      return this;
+    },
+
+    /**
+     * Draws borders of an object's bounding box when it is inside a group.
+     * Requires public properties: width, height
+     * Requires public options: padding, borderColor
+     * @param {CanvasRenderingContext2D} ctx Context to draw on
+     * @param {object} options object representing current object parameters
+     * @param {Object} styleOverride object to override the object style
+     * @return {fabric.Object} thisArg
+     * @chainable
+     */
+    drawBordersInGroup: function(ctx, options, styleOverride) {
+      styleOverride = styleOverride || {};
+      var p = this._getNonTransformedDimensions(),
+          matrix = fabric.util.customTransformMatrix(options.scaleX, options.scaleY, options.skewX),
+          wh = fabric.util.transformPoint(p, matrix),
+          strokeWidth = 1 / this.borderScaleFactor,
+          width = wh.x + strokeWidth,
+          height = wh.y + strokeWidth;
+
+      ctx.save();
+      this._setLineDash(ctx, styleOverride.borderDashArray || this.borderDashArray, null);
+      ctx.strokeStyle = styleOverride.borderColor || this.borderColor;
+
+      ctx.strokeRect(
+        -width / 2,
+        -height / 2,
+        width,
+        height
+      );
 
       ctx.restore();
       return this;
@@ -194,77 +222,79 @@
      * Requires public properties: width, height
      * Requires public options: cornerSize, padding
      * @param {CanvasRenderingContext2D} ctx Context to draw on
+     * @param {Object} styleOverride object to override the object style
      * @return {fabric.Object} thisArg
      * @chainable
      */
-    drawControls: function(ctx) {
-      if (!this.hasControls) {
-        return this;
-      }
-
-      var wh = this._calculateCurrentDimensions(true),
+    drawControls: function(ctx, styleOverride) {
+      styleOverride = styleOverride || {};
+      var wh = this._calculateCurrentDimensions(),
           width = wh.x,
           height = wh.y,
-          left = -(width / 2),
-          top = -(height / 2),
-          scaleOffset = this.cornerSize / 2,
-          methodName = this.transparentCorners ? 'strokeRect' : 'fillRect';
+          scaleOffset = styleOverride.cornerSize || this.cornerSize,
+          left = -(width + scaleOffset) / 2,
+          top = -(height + scaleOffset) / 2,
+          transparentCorners = typeof styleOverride.transparentCorners !== 'undefined' ?
+            styleOverride.transparentCorners : this.transparentCorners,
+          hasRotatingPoint = typeof styleOverride.hasRotatingPoint !== 'undefined' ?
+            styleOverride.hasRotatingPoint : this.hasRotatingPoint,
+          methodName = transparentCorners ? 'stroke' : 'fill';
 
       ctx.save();
-
-      ctx.lineWidth = 1;
-
-      ctx.globalAlpha = this.isMoving ? this.borderOpacityWhenMoving : 1;
-      ctx.strokeStyle = ctx.fillStyle = this.cornerColor;
+      ctx.strokeStyle = ctx.fillStyle = styleOverride.cornerColor || this.cornerColor;
+      if (!this.transparentCorners) {
+        ctx.strokeStyle = styleOverride.cornerStrokeColor || this.cornerStrokeColor;
+      }
+      this._setLineDash(ctx, styleOverride.cornerDashArray || this.cornerDashArray, null);
 
       // top-left
       this._drawControl('tl', ctx, methodName,
-        left - scaleOffset,
-        top - scaleOffset);
+        left,
+        top, styleOverride);
 
       // top-right
       this._drawControl('tr', ctx, methodName,
-        left + width - scaleOffset,
-        top - scaleOffset);
+        left + width,
+        top, styleOverride);
 
       // bottom-left
       this._drawControl('bl', ctx, methodName,
-        left - scaleOffset,
-        top + height - scaleOffset);
+        left,
+        top + height, styleOverride);
 
       // bottom-right
       this._drawControl('br', ctx, methodName,
-        left + width - scaleOffset,
-        top + height - scaleOffset);
+        left + width,
+        top + height, styleOverride);
 
       if (!this.get('lockUniScaling')) {
 
         // middle-top
         this._drawControl('mt', ctx, methodName,
-          left + width/2 - scaleOffset,
-          top - scaleOffset);
+          left + width / 2,
+          top, styleOverride);
 
         // middle-bottom
         this._drawControl('mb', ctx, methodName,
-          left + width/2 - scaleOffset,
-          top + height - scaleOffset);
+          left + width / 2,
+          top + height, styleOverride);
 
         // middle-right
         this._drawControl('mr', ctx, methodName,
-          left + width - scaleOffset,
-          top + height/2 - scaleOffset);
+          left + width,
+          top + height / 2, styleOverride);
 
         // middle-left
         this._drawControl('ml', ctx, methodName,
-          left - scaleOffset,
-          top + height/2 - scaleOffset);
+          left,
+          top + height / 2, styleOverride);
       }
 
       // middle-top-rotate
-      if (this.hasRotatingPoint) {
+      if (hasRotatingPoint) {
         this._drawControl('mtr', ctx, methodName,
-          left + width/2 - scaleOffset,
-          top - this.rotatingPointOffset - scaleOffset);
+          left + width / 2,
+          top - this.rotatingPointOffset, styleOverride);
       }
 
       ctx.restore();
@@ -275,12 +305,27 @@
     /**
      * @private
      */
-    _drawControl: function(control, ctx, methodName, left, top) {
-      var size = this.cornerSize;
-
-      if (this.isControlVisible(control)) {
-        isVML() || this.transparentCorners || ctx.clearRect(left, top, size, size);
-        ctx[methodName](left, top, size, size);
+    _drawControl: function(control, ctx, methodName, left, top, styleOverride) {
+      styleOverride = styleOverride || {};
+      if (!this.isControlVisible(control)) {
+        return;
+      }
+      var size = this.cornerSize, stroke = !this.transparentCorners && this.cornerStrokeColor;
+      switch (styleOverride.cornerStyle || this.cornerStyle) {
+        case 'circle':
+          ctx.beginPath();
+          ctx.arc(left + size / 2, top + size / 2, size / 2, 0, 2 * Math.PI, false);
+          ctx[methodName]();
+          if (stroke) {
+            ctx.stroke();
+          }
+          break;
+        default:
+          this.transparentCorners || ctx.clearRect(left, top, size, size);
+          ctx[methodName + 'Rect'](left, top, size, size);
+          if (stroke) {
+            ctx.strokeRect(left, top, size, size);
+          }
       }
     },
 
@@ -349,6 +394,27 @@
         };
       }
       return this._controlsVisibility;
+    },
+
+    /**
+     * This callback function is called every time _discardActiveObject or _setActiveObject
+     * try to to deselect this object. If the function returns true, the process is cancelled
+     * @param {Object} [options] options sent from the upper functions
+     * @param {Event} [options.e] event if the process is generated by an event
+     */
+    onDeselect: function() {
+      // implemented by sub-classes, as needed.
+    },
+
+
+    /**
+     * This callback function is called every time _discardActiveObject or _setActiveObject
+     * try to to select this object. If the function returns true, the process is cancelled
+     * @param {Object} [options] options sent from the upper functions
+     * @param {Event} [options.e] event if the process is generated by an event
+     */
+    onSelect: function() {
+      // implemented by sub-classes, as needed.
     }
   });
 })();

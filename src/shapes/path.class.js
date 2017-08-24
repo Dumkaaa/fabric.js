@@ -29,11 +29,17 @@
     return;
   }
 
+  var stateProperties = fabric.Object.prototype.stateProperties.concat();
+  stateProperties.push('path');
+
+  var cacheProperties = fabric.Object.prototype.cacheProperties.concat();
+  cacheProperties.push('path', 'fillRule');
+
   /**
    * Path class
    * @class fabric.Path
    * @extends fabric.Object
-   * @tutorial {@link http://fabricjs.com/fabric-intro-part-1/#path_and_pathgroup}
+   * @tutorial {@link http://fabricjs.com/fabric-intro-part-1#path_and_pathgroup}
    * @see {@link fabric.Path#initialize} for constructor definition
    */
   fabric.Path = fabric.util.createClass(fabric.Object, /** @lends fabric.Path.prototype */ {
@@ -52,19 +58,9 @@
      */
     path: null,
 
-    /**
-     * Minimum X from points values, necessary to offset points
-     * @type Number
-     * @default
-     */
-    minX: 0,
+    cacheProperties: cacheProperties,
 
-    /**
-     * Minimum Y from points values, necessary to offset points
-     * @type Number
-     * @default
-     */
-    minY: 0,
+    stateProperties: stateProperties,
 
     /**
      * Constructor
@@ -74,11 +70,10 @@
      */
     initialize: function(path, options) {
       options = options || { };
-
-      this.setOptions(options);
+      this.callSuper('initialize', options);
 
       if (!path) {
-        throw new Error('`path` argument is required');
+        path = [];
       }
 
       var fromArray = _toString.call(path) === '[object Array]';
@@ -96,42 +91,30 @@
         this.path = this._parsePath();
       }
 
-      this._setPositionDimensions();
-
-      if (options.sourcePath) {
-        this.setSourcePath(options.sourcePath);
-      }
+      this._setPositionDimensions(options);
     },
 
     /**
      * @private
+     * @param {Object} options Options object
      */
-    _setPositionDimensions: function() {
+    _setPositionDimensions: function(options) {
       var calcDim = this._parseDimensions();
 
-      this.minX = calcDim.left;
-      this.minY = calcDim.top;
       this.width = calcDim.width;
       this.height = calcDim.height;
 
-      calcDim.left += this.originX === 'center'
-        ? this.width / 2
-        : this.originX === 'right'
-          ? this.width
-          : 0;
+      if (typeof options.left === 'undefined') {
+        this.left = calcDim.left;
+      }
 
-      calcDim.top += this.originY === 'center'
-        ? this.height / 2
-        : this.originY === 'bottom'
-          ? this.height
-          : 0;
-
-      this.top = this.top || calcDim.top;
-      this.left = this.left || calcDim.left;
+      if (typeof options.top === 'undefined') {
+        this.top = calcDim.top;
+      }
 
       this.pathOffset = this.pathOffset || {
-        x: this.minX + this.width / 2,
-        y: this.minY + this.height / 2
+        x: calcDim.left + this.width / 2,
+        y: calcDim.top + this.height / 2
       };
     },
 
@@ -139,7 +122,7 @@
      * @private
      * @param {CanvasRenderingContext2D} ctx context to render path on
      */
-    _render: function(ctx) {
+    _renderPathCommands: function(ctx) {
       var current, // current instruction
           previous = null,
           subpathStartX = 0,
@@ -152,11 +135,6 @@
           tempY,
           l = -this.pathOffset.x,
           t = -this.pathOffset.y;
-
-      if (this.group && this.group.type === 'path-group') {
-        l = 0;
-        t = 0;
-      }
 
       ctx.beginPath();
 
@@ -444,44 +422,16 @@
         }
         previous = current;
       }
-      this._renderFill(ctx);
-      this._renderStroke(ctx);
     },
 
     /**
-     * Renders path on a specified context
+     * @private
      * @param {CanvasRenderingContext2D} ctx context to render path on
-     * @param {Boolean} [noTransform] When true, context is not transformed
      */
-    render: function(ctx, noTransform) {
-      // do not render if width/height are zeros or object is not visible
-      if (!this.visible) {
-        return;
-      }
-
-      ctx.save();
-
-      this._setupCompositeOperation(ctx);
-      if (!noTransform) {
-        this.transform(ctx);
-      }
-      this._setStrokeStyles(ctx);
-      this._setFillStyles(ctx);
-      if (this.group && this.group.type === 'path-group') {
-        ctx.translate(-this.group.width / 2, -this.group.height / 2);
-      }
-      if (this.transformMatrix) {
-        ctx.transform.apply(ctx, this.transformMatrix);
-      }
-      this._setOpacity(ctx);
-      this._setShadow(ctx);
-      this.clipTo && fabric.util.clipContext(this, ctx);
-      this._render(ctx, noTransform);
-      this.clipTo && ctx.restore();
-      this._removeShadow(ctx);
-      this._restoreCompositeOperation(ctx);
-
-      ctx.restore();
+    _render: function(ctx) {
+      this._renderPathCommands(ctx);
+      this._renderFill(ctx);
+      this._renderStroke(ctx);
     },
 
     /**
@@ -500,15 +450,10 @@
      */
     toObject: function(propertiesToInclude) {
       var o = extend(this.callSuper('toObject', propertiesToInclude), {
-        path: this.path.map(function(item) { return item.slice() }),
-        pathOffset: this.pathOffset
+        path: this.path.map(function(item) { return item.slice(); }),
+        top: this.top,
+        left: this.left,
       });
-      if (this.sourcePath) {
-        o.sourcePath = this.sourcePath;
-      }
-      if (this.transformMatrix) {
-        o.transformMatrix = this.transformMatrix;
-      }
       return o;
     },
 
@@ -518,11 +463,10 @@
      * @return {Object} object representation of an instance
      */
     toDatalessObject: function(propertiesToInclude) {
-      var o = this.toObject(propertiesToInclude);
-      if (this.sourcePath) {
-        o.path = this.sourcePath;
+      var o = this.toObject(['sourcePath'].concat(propertiesToInclude));
+      if (o.sourcePath) {
+        delete o.path;
       }
-      delete o.sourcePath;
       return o;
     },
 
@@ -540,18 +484,14 @@
         chunks.push(this.path[i].join(' '));
       }
       var path = chunks.join(' ');
-      if (!(this.group && this.group.type === 'path-group')) {
-        addTransform = ' translate(' + (-this.pathOffset.x) + ', ' + (-this.pathOffset.y) + ') ';
-      }
+      addTransform = ' translate(' + (-this.pathOffset.x) + ', ' + (-this.pathOffset.y) + ') ';
       markup.push(
-        //jscs:disable validateIndentation
-        '<path ',
+        '<path ', this.getSvgId(),
           'd="', path,
           '" style="', this.getSvgStyles(),
           '" transform="', this.getSvgTransform(), addTransform,
           this.getSvgTransformMatrix(), '" stroke-linecap="round" ',
         '/>\n'
-        //jscs:enable validateIndentation
       );
 
       return reviver ? reviver(markup.join('')) : markup.join('');
@@ -570,8 +510,8 @@
      * @private
      */
     _parsePath: function() {
-      var result = [ ],
-          coords = [ ],
+      var result = [],
+          coords = [],
           currentPath,
           parsed,
           re = /([-+]?((\d+\.\d+)|((\d+)|(\.\d+)))(?:e[-+]?\d+)?)/ig,
@@ -588,7 +528,7 @@
           coords.push(match[0]);
         }
 
-        coordsParsed = [ currentPath.charAt(0) ];
+        coordsParsed = [currentPath.charAt(0)];
 
         for (var j = 0, jlen = coords.length; j < jlen; j++) {
           parsed = parseFloat(coords[j]);
@@ -603,7 +543,7 @@
 
         if (coordsParsed.length - 1 > commandLength) {
           for (var k = 1, klen = coordsParsed.length; k < klen; k += commandLength) {
-            result.push([ command ].concat(coordsParsed.slice(k, k + commandLength)));
+            result.push([command].concat(coordsParsed.slice(k, k + commandLength)));
             command = repeatedCommand;
           }
         }
@@ -643,33 +583,33 @@
           case 'l': // lineto, relative
             x += current[1];
             y += current[2];
-            bounds = [ ];
+            bounds = [];
             break;
 
           case 'L': // lineto, absolute
             x = current[1];
             y = current[2];
-            bounds = [ ];
+            bounds = [];
             break;
 
           case 'h': // horizontal lineto, relative
             x += current[1];
-            bounds = [ ];
+            bounds = [];
             break;
 
           case 'H': // horizontal lineto, absolute
             x = current[1];
-            bounds = [ ];
+            bounds = [];
             break;
 
           case 'v': // vertical lineto, relative
             y += current[1];
-            bounds = [ ];
+            bounds = [];
             break;
 
           case 'V': // verical lineto, absolute
             y = current[1];
-            bounds = [ ];
+            bounds = [];
             break;
 
           case 'm': // moveTo, relative
@@ -677,7 +617,7 @@
             y += current[2];
             subpathStartX = x;
             subpathStartY = y;
-            bounds = [ ];
+            bounds = [];
             break;
 
           case 'M': // moveTo, absolute
@@ -685,7 +625,7 @@
             y = current[2];
             subpathStartX = x;
             subpathStartY = y;
-            bounds = [ ];
+            bounds = [];
             break;
 
           case 'c': // bezierCurveTo, relative
@@ -706,8 +646,6 @@
             break;
 
           case 'C': // bezierCurveTo, absolute
-            x = current[5];
-            y = current[6];
             controlX = current[3];
             controlY = current[4];
             bounds = fabric.util.getBoundsOfCurve(x, y,
@@ -715,9 +653,11 @@
               current[2],
               controlX,
               controlY,
-              x,
-              y
+              current[5],
+              current[6]
             );
+            x = current[5];
+            y = current[6];
             break;
 
           case 's': // shorthand cubic bezierCurveTo, relative
@@ -922,10 +862,10 @@
         aY.push(y);
       }
 
-      var minX = min(aX),
-          minY = min(aY),
-          maxX = max(aX),
-          maxY = max(aY),
+      var minX = min(aX) || 0,
+          minY = min(aY) || 0,
+          maxX = max(aX) || 0,
+          maxY = max(aY) || 0,
           deltaX = maxX - minX,
           deltaY = maxY - minY,
 
@@ -945,24 +885,19 @@
    * @static
    * @memberOf fabric.Path
    * @param {Object} object
-   * @param {Function} callback Callback to invoke when an fabric.Path instance is created
+   * @param {Function} [callback] Callback to invoke when an fabric.Path instance is created
    */
   fabric.Path.fromObject = function(object, callback) {
-    if (typeof object.path === 'string') {
-      fabric.loadSVGFromURL(object.path, function (elements) {
-        var path = elements[0],
-            pathUrl = object.path;
-
-        delete object.path;
-
-        fabric.util.object.extend(path, object);
-        path.setSourcePath(pathUrl);
-
-        callback(path);
+    if (typeof object.sourcePath === 'string') {
+      var pathUrl = object.sourcePath;
+      fabric.loadSVGFromURL(pathUrl, function (elements) {
+        var path = elements[0];
+        path.setOptions(object);
+        callback && callback(path);
       });
     }
     else {
-      callback(new fabric.Path(object.path, object));
+      fabric.Object._fromObject('Path', object, callback, 'path');
     }
   };
 
@@ -982,20 +917,12 @@
    * @param {SVGElement} element to parse
    * @param {Function} callback Callback to invoke when an fabric.Path instance is created
    * @param {Object} [options] Options object
+   * @param {Function} [callback] Options callback invoked after parsing is finished
    */
   fabric.Path.fromElement = function(element, callback, options) {
     var parsedAttributes = fabric.parseAttributes(element, fabric.Path.ATTRIBUTE_NAMES);
-    callback && callback(new fabric.Path(parsedAttributes.d, extend(parsedAttributes, options)));
+    callback(new fabric.Path(parsedAttributes.d, extend(parsedAttributes, options)));
   };
   /* _FROM_SVG_END_ */
-
-  /**
-   * Indicates that instances of this type are async
-   * @static
-   * @memberOf fabric.Path
-   * @type Boolean
-   * @default
-   */
-  fabric.Path.async = true;
 
 })(typeof exports !== 'undefined' ? exports : this);

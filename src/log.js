@@ -1,15 +1,16 @@
 /**
  * Wrapper around `console.log` (when available)
- * @param {Any} [values] Values to log
+ * @param {*} [values] Values to log
  */
 fabric.log = function() { };
 
 /**
  * Wrapper around `console.warn` (when available)
- * @param {Any} [values] Values to log as a warning
+ * @param {*} [values] Values to log as a warning
  */
 fabric.warn = function() { };
 
+/* eslint-disable */
 if (typeof console !== 'undefined') {
 
   ['log', 'warn'].forEach(function(methodName) {
@@ -23,3 +24,4 @@ if (typeof console !== 'undefined') {
     }
   });
 }
+/* eslint-enable */

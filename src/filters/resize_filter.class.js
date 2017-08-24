@@ -3,21 +3,23 @@
   'use strict';
 
   var fabric  = global.fabric || (global.fabric = { }), pow = Math.pow, floor = Math.floor,
-      sqrt = Math.sqrt, abs = Math.abs, max = Math.max, round = Math.round, sin = Math.sin,
-      ceil = Math.ceil;
+      sqrt = Math.sqrt, abs = Math.abs, round = Math.round, sin = Math.sin,
+      ceil = Math.ceil,
+      filters = fabric.Image.filters,
+      createClass = fabric.util.createClass;
 
   /**
    * Resize image filter class
    * @class fabric.Image.filters.Resize
    * @memberOf fabric.Image.filters
    * @extends fabric.Image.filters.BaseFilter
-   * @see {@link http://fabricjs.com/image-filters/|ImageFilters demo}
+   * @see {@link http://fabricjs.com/image-filters|ImageFilters demo}
    * @example
    * var filter = new fabric.Image.filters.Resize();
    * object.filters.push(filter);
    * object.applyFilters(canvas.renderAll.bind(canvas));
    */
-  fabric.Image.filters.Resize = fabric.util.createClass(fabric.Image.filters.BaseFilter, /** @lends fabric.Image.filters.Resize.prototype */ {
+  filters.Resize = createClass(filters.BaseFilter, /** @lends fabric.Image.filters.Resize.prototype */ {
 
     /**
      * Filter type
@@ -54,87 +56,161 @@
      */
     lanczosLobes: 3,
 
+    // vertexSource: 'attribute vec2 aPosition;\n' +
+    //   'attribute vec2 aTexCoord;\n' +
+    //   'uniform float uStepW;\n' +
+    //   'uniform float uStepH;\n' +
+    //   'varying vec2 centerTextureCoordinate;\n' +
+    //   'varying vec2 oneStepLeftTextureCoordinate;\n' +
+    //   'varying vec2 twoStepsLeftTextureCoordinate;\n' +
+    //   'varying vec2 threeStepsLeftTextureCoordinate;\n' +
+    //   'varying vec2 fourStepsLeftTextureCoordinate;\n' +
+    //   'varying vec2 oneStepRightTextureCoordinate;\n' +
+    //   'varying vec2 twoStepsRightTextureCoordinate;\n' +
+    //   'varying vec2 threeStepsRightTextureCoordinate;\n' +
+    //   'varying vec2 fourStepsRightTextureCoordinate;\n' +
+    //   'void main() {\n' +
+    //       'vec2 firstOffset = vec2(uStepW, uStepH);\n' +
+    //       'vec2 secondOffset = vec2(2.0 * uStepW, 2.0 * uStepH);\n' +
+    //       'vec2 thirdOffset = vec2(3.0 * uStepW, 3.0 * uStepH);\n' +
+    //       'vec2 fourthOffset = vec2(4.0 * uStepW, 4.0 * uStepH);\n' +
+    //       'centerTextureCoordinate = aTexCoord;\n' +
+    //       'oneStepLeftTextureCoordinate = aTexCoord - firstOffset;\n' +
+    //       'twoStepsLeftTextureCoordinate = aTexCoord - secondOffset;\n' +
+    //       'threeStepsLeftTextureCoordinate = aTexCoord - thirdOffset;\n' +
+    //       'fourStepsLeftTextureCoordinate = aTexCoord - fourthOffset;\n' +
+    //       'oneStepRightTextureCoordinate = aTexCoord + firstOffset;\n' +
+    //       'twoStepsRightTextureCoordinate = aTexCoord + secondOffset;\n' +
+    //       'threeStepsRightTextureCoordinate = aTexCoord + thirdOffset;\n' +
+    //       'fourStepsRightTextureCoordinate = aTexCoord + fourthOffset;\n' +
+    //       'gl_Position = vec4(aPosition * 2.0 - 1.0, 0.0, 1.0);\n' +
+    //   '}',
+    //
+    // fragmentSource: 'precision highp float;\n' +
+    //   'varying vec2 centerTextureCoordinate;\n' +
+    //   'varying vec2 oneStepLeftTextureCoordinate;\n' +
+    //   'varying vec2 twoStepsLeftTextureCoordinate;\n' +
+    //   'varying vec2 threeStepsLeftTextureCoordinate;\n' +
+    //   'varying vec2 fourStepsLeftTextureCoordinate;\n' +
+    //   'varying vec2 oneStepRightTextureCoordinate;\n' +
+    //   'varying vec2 twoStepsRightTextureCoordinate;\n' +
+    //   'varying vec2 threeStepsRightTextureCoordinate;\n' +
+    //   'varying vec2 fourStepsRightTextureCoordinate;\n' +
+    //   'uniform sampler2D uTexture;\n' +
+    //   'void main() {\n' +
+    //     'vec4 color = texture2D(uTexture, centerTextureCoordinate) * 0.38026;\n' +
+    //     'color += texture2D(uTexture, oneStepLeftTextureCoordinate) * 0.27667;\n' +
+    //     'color += texture2D(uTexture, oneStepRightTextureCoordinate) * 0.27667;\n' +
+    //     'color += texture2D(uTexture, twoStepsLeftTextureCoordinate) * 0.08074;\n' +
+    //     'color += texture2D(uTexture, twoStepsRightTextureCoordinate) * 0.08074;\n' +
+    //     'color += texture2D(uTexture, threeStepsLeftTextureCoordinate) * -0.02612;\n' +
+    //     'color += texture2D(uTexture, threeStepsRightTextureCoordinate) * -0.02612;\n' +
+    //     'color += texture2D(uTexture, fourStepsLeftTextureCoordinate) * -0.02143;\n' +
+    //     'color += texture2D(uTexture, fourStepsRightTextureCoordinate) * -0.02143;\n' +
+    //     'gl_FragColor = color;\n' +
+    //   '}',
+
     /**
      * Applies filter to canvas element
      * @memberOf fabric.Image.filters.Resize.prototype
      * @param {Object} canvasEl Canvas element to apply filter to
+     * @param {Number} scaleX
+     * @param {Number} scaleY
      */
-    applyTo: function(canvasEl, scaleX, scaleY) {
+    applyTo2d: function(options) {
+      var imageData = options.imageData,
+          scaleX = options.scaleX || this.scaleX,
+          scaleY = options.scaleY || this.scaleY;
+      if (scaleX === 1 && scaleY === 1) {
+        return;
+      }
 
       this.rcpScaleX = 1 / scaleX;
       this.rcpScaleY = 1 / scaleY;
 
-      var oW = canvasEl.width, oH = canvasEl.height,
+      var oW = imageData.width, oH = imageData.height,
           dW = round(oW * scaleX), dH = round(oH * scaleY),
-          imageData;
+          newData;
 
       if (this.resizeType === 'sliceHack') {
-        imageData = this.sliceByTwo(canvasEl, oW, oH, dW, dH);
+        newData = this.sliceByTwo(options, oW, oH, dW, dH);
       }
-      if (this.resizeType === 'hermite') {
-        imageData = this.hermiteFastResize(canvasEl, oW, oH, dW, dH);
+      else if (this.resizeType === 'hermite') {
+        newData = this.hermiteFastResize(options, oW, oH, dW, dH);
       }
-      if (this.resizeType === 'bilinear') {
-        imageData = this.bilinearFiltering(canvasEl, oW, oH, dW, dH);
+      else if (this.resizeType === 'bilinear') {
+        newData = this.bilinearFiltering(options, oW, oH, dW, dH);
       }
-      if (this.resizeType === 'lanczos') {
-        imageData = this.lanczosResize(canvasEl, oW, oH, dW, dH);
+      else if (this.resizeType === 'lanczos') {
+        newData = this.lanczosResize(options, oW, oH, dW, dH);
       }
-      canvasEl.width = dW;
-      canvasEl.height = dH;
-      canvasEl.getContext('2d').putImageData(imageData, 0, 0);
+      options.imageData = newData;
     },
 
-    sliceByTwo: function(canvasEl, width, height, newWidth, newHeight) {
-      var context = canvasEl.getContext('2d'), imageData,
-          multW = 0.5, multH = 0.5, signW = 1, signH = 1,
-          doneW = false, doneH = false, stepW = width, stepH = height,
-          tmpCanvas = fabric.util.createCanvasElement(),
-          tmpCtx = tmpCanvas.getContext('2d');
-      newWidth = floor(newWidth);
-      newHeight = floor(newHeight);
-      tmpCanvas.width = max(newWidth, width);
-      tmpCanvas.height = max(newHeight, height);
+    /**
+     * Filter sliceByTwo
+     * @param {Object} canvasEl Canvas element to apply filter to
+     * @param {Number} oW Original Width
+     * @param {Number} oH Original Height
+     * @param {Number} dW Destination Width
+     * @param {Number} dH Destination Height
+     * @returns {ImageData}
+     */
+    sliceByTwo: function(options, oW, oH, dW, dH) {
+      var imageData = options.imageData,
+          mult = 0.5, doneW = false, doneH = false, stepW = oW * mult,
+          stepH = oH * mult, resources = fabric.filterBackend.resources,
+          tmpCanvas, ctx, sX = 0, sY = 0, dX = oW, dY = 0;
+      if (!resources.sliceByTwo) {
+        resources.sliceByTwo = document.createElement('canvas');
+      }
+      tmpCanvas = resources.sliceByTwo;
+      if (tmpCanvas.width < oW * 1.5 || tmpCanvas.height < oH) {
+        tmpCanvas.width = oW * 1.5;
+        tmpCanvas.height = oH;
+      }
+      ctx = tmpCanvas.getContext('2d');
+      ctx.clearRect(0, 0, oW * 1.5, oH);
+      ctx.putImageData(imageData, 0, 0);
 
-      if (newWidth > width) {
-        multW = 2;
-        signW = -1;
-      }
-      if (newHeight > height) {
-        multH = 2;
-        signH = -1;
-      }
-      imageData = context.getImageData(0, 0, width, height);
-      canvasEl.width = max(newWidth, width);
-      canvasEl.height = max(newHeight, height);
-      context.putImageData(imageData, 0, 0);
+      dW = floor(dW);
+      dH = floor(dH);
 
       while (!doneW || !doneH) {
-        width = stepW;
-        height = stepH;
-        if (newWidth * signW < floor(stepW * multW * signW)) {
-          stepW = floor(stepW * multW);
+        oW = stepW;
+        oH = stepH;
+        if (dW < floor(stepW * mult)) {
+          stepW = floor(stepW * mult);
         }
         else {
-          stepW = newWidth;
+          stepW = dW;
           doneW = true;
         }
-        if (newHeight * signH < floor(stepH * multH * signH)) {
-          stepH = floor(stepH * multH);
+        if (dH < floor(stepH * mult)) {
+          stepH = floor(stepH * mult);
         }
         else {
-          stepH = newHeight;
+          stepH = dH;
           doneH = true;
         }
-        imageData = context.getImageData(0, 0, width, height);
-        tmpCtx.putImageData(imageData, 0, 0);
-        context.clearRect(0, 0, stepW, stepH);
-        context.drawImage(tmpCanvas, 0, 0, width, height, 0, 0, stepW, stepH);
+        ctx.drawImage(tmpCanvas, sX, sY, oW, oH, dX, dY, stepW, stepH);
+        sX = dX;
+        sY = dY;
+        dY += stepH;
       }
-      return context.getImageData(0, 0, newWidth, newHeight);
+      return ctx.getImageData(sX, sY, dW, dH);
     },
 
-    lanczosResize: function(canvasEl, oW, oH, dW, dH) {
+    /**
+     * Filter lanczosResize
+     * @param {Object} canvasEl Canvas element to apply filter to
+     * @param {Number} oW Original Width
+     * @param {Number} oH Original Height
+     * @param {Number} dW Destination Width
+     * @param {Number} dH Destination Height
+     * @returns {ImageData}
+     */
+    lanczosResize: function(options, oW, oH, dW, dH) {
 
       function lanczosCreate(lobes) {
         return function(x) {
@@ -158,7 +234,7 @@
         for (v = 0; v < dH; v++) {
           center.y = (v + 0.5) * ratioY;
           icenter.y = floor(center.y);
-          a = 0, red = 0, green = 0, blue = 0, alpha = 0;
+          a = 0; red = 0; green = 0; blue = 0; alpha = 0;
           for (i = icenter.x - range2X; i <= icenter.x + range2X; i++) {
             if (i < 0 || i >= oW) {
               continue;
@@ -201,10 +277,9 @@
         }
       }
 
-      var context = canvasEl.getContext('2d'),
-          srcImg = context.getImageData(0, 0, oW, oH),
-          destImg = context.getImageData(0, 0, dW, dH),
-          srcData = srcImg.data, destData = destImg.data,
+      var srcData = options.imageData.data,
+          destImg = options.ctx.creteImageData(dW, dH),
+          destData = destImg.data,
           lanczos = lanczosCreate(this.lanczosLobes),
           ratioX = this.rcpScaleX, ratioY = this.rcpScaleY,
           rcpRatioX = 2 / this.rcpScaleX, rcpRatioY = 2 / this.rcpScaleY,
@@ -215,20 +290,29 @@
       return process(0);
     },
 
-    bilinearFiltering: function(canvasEl, w, h, w2, h2) {
+    /**
+     * bilinearFiltering
+     * @param {Object} canvasEl Canvas element to apply filter to
+     * @param {Number} oW Original Width
+     * @param {Number} oH Original Height
+     * @param {Number} dW Destination Width
+     * @param {Number} dH Destination Height
+     * @returns {ImageData}
+     */
+    bilinearFiltering: function(options, oW, oH, dW, dH) {
       var a, b, c, d, x, y, i, j, xDiff, yDiff, chnl,
           color, offset = 0, origPix, ratioX = this.rcpScaleX,
-          ratioY = this.rcpScaleY, context = canvasEl.getContext('2d'),
-          w4 = 4 * (w - 1), img = context.getImageData(0, 0, w, h),
-          pixels = img.data, destImage = context.getImageData(0, 0, w2, h2),
+          ratioY = this.rcpScaleY,
+          w4 = 4 * (oW - 1), img = options.imageData,
+          pixels = img.data, destImage = options.ctx.createImageData(dW, dH),
           destPixels = destImage.data;
-      for (i = 0; i < h2; i++) {
-        for (j = 0; j < w2; j++) {
+      for (i = 0; i < dH; i++) {
+        for (j = 0; j < dW; j++) {
           x = floor(ratioX * j);
           y = floor(ratioY * i);
           xDiff = ratioX * j - x;
           yDiff = ratioY * i - y;
-          origPix = 4 * (y * w + x);
+          origPix = 4 * (y * oW + x);
 
           for (chnl = 0; chnl < 4; chnl++) {
             a = pixels[origPix + chnl];
@@ -244,13 +328,21 @@
       return destImage;
     },
 
-    hermiteFastResize: function(canvasEl, oW, oH, dW, dH) {
+    /**
+     * hermiteFastResize
+     * @param {Object} canvasEl Canvas element to apply filter to
+     * @param {Number} oW Original Width
+     * @param {Number} oH Original Height
+     * @param {Number} dW Destination Width
+     * @param {Number} dH Destination Height
+     * @returns {ImageData}
+     */
+    hermiteFastResize: function(options, oW, oH, dW, dH) {
       var ratioW = this.rcpScaleX, ratioH = this.rcpScaleY,
           ratioWHalf = ceil(ratioW / 2),
           ratioHHalf = ceil(ratioH / 2),
-          context = canvasEl.getContext('2d'),
-          img = context.getImageData(0, 0, oW, oH), data = img.data,
-          img2 = context.getImageData(0, 0, dW, dH), data2 = img2.data;
+          img = options.imageData, data = img.data,
+          img2 = options.ctx.createImageData(dW, dH), data2 = img2.data;
       for (var j = 0; j < dH; j++) {
         for (var i = 0; i < dW; i++) {
           var x2 = (i + j * dW) * 4, weight = 0, weights = 0, weightsAlpha = 0,
@@ -261,7 +353,7 @@
             for (var xx = floor(i * ratioW); xx < (i + 1) * ratioW; xx++) {
               var dx = abs(centerX - (xx + 0.5)) / ratioWHalf,
                   w = sqrt(w0 + dx * dx);
-              /*jshint maxdepth:5 */
+              /* eslint-disable max-depth */
               if (w > 1 && w < -1) {
                 continue;
               }
@@ -273,17 +365,15 @@
                 gxA += weight * data[dx + 3];
                 weightsAlpha += weight;
                 //colors
-                /*jshint maxdepth:6 */
                 if (data[dx + 3] < 255) {
                   weight = weight * data[dx + 3] / 250;
                 }
-                /*jshint maxdepth:5 */
                 gxR += weight * data[dx];
                 gxG += weight * data[dx + 1];
                 gxB += weight * data[dx + 2];
                 weights += weight;
               }
-              /*jshint maxdepth:4 */
+              /* eslint-enable max-depth */
             }
           }
           data2[x2] = gxR / weights;
@@ -303,7 +393,7 @@
       return {
         type: this.type,
         scaleX: this.scaleX,
-        scaley: this.scaleY,
+        scaleY: this.scaleY,
         resizeType: this.resizeType,
         lanczosLobes: this.lanczosLobes
       };
@@ -313,10 +403,10 @@
   /**
    * Returns filter instance from an object representation
    * @static
+   * @param {Object} object Object to create an instance from
+   * @param {Function} [callback] to be invoked after filter creation
    * @return {fabric.Image.filters.Resize} Instance of fabric.Image.filters.Resize
    */
-  fabric.Image.filters.Resize.fromObject = function() {
-    return new fabric.Image.filters.Resize();
-  };
+  fabric.Image.filters.Resize.fromObject = fabric.Image.filters.BaseFilter.fromObject;
 
 })(typeof exports !== 'undefined' ? exports : this);
